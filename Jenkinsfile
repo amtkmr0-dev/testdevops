@@ -8,7 +8,7 @@ pipeline {
         IMAGE_TAG    = "${BUILD_NUMBER}"
         ECR_IMAGE    = "${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}"
         ECR_LATEST   = "${ECR_REGISTRY}/${ECR_REPO}:latest"
-        APP_EC2_HOST = "3.108.217.189"
+        APP_EC2_HOST = "52.66.237.173"
         APP_USER     = "ubuntu"
         CONTAINER    = "jenkinsapp"
         APP_PORT     = "80"
