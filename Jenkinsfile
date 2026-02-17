@@ -1,10 +1,10 @@
 pipeline {
     agent any
-
+//688094241179.dkr.ecr.ap-south-1.amazonaws.com/jenkins/repo
     environment {
         AWS_REGION    = "ap-south-1"
         ECR_REGISTRY  = "688094241179.dkr.ecr.ap-south-1.amazonaws.com/jenkins/repo"
-        ECR_REPO      = "jenkin/repo"
+        ECR_REPO      = "jenkins/repo"
         IMAGE_TAG     = "${BUILD_NUMBER}"
         APP_EC2_HOST  = "65.0.105.213"
         CONTAINER_NAME = "student-app"
