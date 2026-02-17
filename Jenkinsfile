@@ -48,28 +48,23 @@ pipeline {
 
         stage('Deploy to EC2') {
             steps {
-                retry(3) {
-                    sshagent(credentials: ['app-ec2-ssh']) {
-                        sh """
-                            ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${APP_USER}@${APP_EC2_HOST} '
-                                aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY} &&
-                                
-                                docker pull ${ECR_LATEST} &&
-                                
-                                docker stop ${CONTAINER} || true
-                                docker rm ${CONTAINER} || true &&
-                                
-                                docker run -d \\
-                                    --name ${CONTAINER} \\
-                                    --restart unless-stopped \\
-                                    -p ${APP_PORT}:80 \\
-                                    ${ECR_LATEST} &&
-                                
-                                docker image prune -f
-                            '
-                        """
-                    }
-                }
+                sshPublisher(
+                    publishers: [
+                        sshPublisherDesc(
+                            configName: 'ubuntu-ec2',
+                            transfers: [
+                                sshTransfer(
+                                    execCommand: """
+                                        docker login -u AWS -p \$(aws ecr get-login-password --region ${AWS_REGION}) ${ECR_REGISTRY}
+                                        docker rm -f myapp || true
+                                        docker run -d -p ${APP_PORT}:${APP_PORT} --name myapp ${ECR_LATEST}
+                                    """
+                                )
+                            ],
+                            verbose: true
+                        )
+                    ]
+                )
             }
         }
     }
