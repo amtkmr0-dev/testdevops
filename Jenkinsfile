@@ -2,76 +2,73 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION   = "ap-south-1"
-        ECR_REGISTRY = "688094241179.dkr.ecr.ap-south-1.amazonaws.com"
-        ECR_REPO     = "jenkins/repo"
-        IMAGE_TAG    = "${BUILD_NUMBER}"
-        ECR_IMAGE    = "${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}"
-        ECR_LATEST   = "${ECR_REGISTRY}/${ECR_REPO}:latest"
-        APP_EC2_HOST = "52.66.237.173"
-        APP_USER     = "ubuntu"
-        CONTAINER    = "jenkinsapp"
-        APP_PORT     = "80"
+        AWS_REGION    = "ap-south-1"
+        ECR_REGISTRY  = "688094241179.dkr.ecr.ap-south-1.amazonaws.com/jenkins/repo"
+        ECR_REPO      = "jenkin/repo"
+        IMAGE_TAG     = "${BUILD_NUMBER}"
+        APP_EC2_HOST  = "65.0.105.213"
+        CONTAINER_NAME = "student-app"
+        APP_PORT      = "80"
     }
 
     stages {
-        stage('Checkout') {
+
+        stage('Checkout Code') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Build Docker') {
+        stage('Build Docker Image') {
             steps {
-                script {
+                sh """
+                    docker build -t ${ECR_REPO}:${IMAGE_TAG} .
+                    docker tag ${ECR_REPO}:${IMAGE_TAG} ${ECR_REPO}:latest
+                """
+            }
+        }
+
+        stage('Login to ECR') {
+            steps {
+                sh """
+                    aws ecr get-login-password --region ${AWS_REGION} | \
+                    docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                """
+            }
+        }
+
+        stage('Tag & Push to ECR') {
+            steps {
+                sh """
+                    docker tag ${ECR_REPO}:${IMAGE_TAG} ${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}
+                    docker tag ${ECR_REPO}:latest ${ECR_REGISTRY}/${ECR_REPO}:latest
+
+                    docker push ${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}
+                    docker push ${ECR_REGISTRY}/${ECR_REPO}:latest
+                """
+            }
+        }
+
+        stage('Deploy to App EC2') {
+            steps {
+                sshagent(credentials: ['app-ec2-ssh']) {
                     sh """
-                        docker build -t ${ECR_REPO}:${IMAGE_TAG} .
-                        docker tag ${ECR_REPO}:${IMAGE_TAG} ${ECR_REPO}:latest
+                    ssh -o StrictHostKeyChecking=no ubuntu@${APP_EC2_HOST} '
+                        aws ecr get-login-password --region ${AWS_REGION} | \
+                        docker login --username AWS --password-stdin ${ECR_REGISTRY} &&
+
+                        docker pull ${ECR_REGISTRY}/${ECR_REPO}:latest &&
+
+                        docker rm -f ${CONTAINER_NAME} || true &&
+
+                        docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        -p ${APP_PORT}:80 \
+                        ${ECR_REGISTRY}/${ECR_REPO}:latest
+                    '
                     """
                 }
             }
-        }
-
-        stage('ECR Login & Push') {
-            steps {
-                script {
-                    sh """
-                        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
-                        docker tag ${ECR_REPO}:${IMAGE_TAG} ${ECR_IMAGE}
-                        docker tag ${ECR_REPO}:latest ${ECR_LATEST}
-                        docker push ${ECR_IMAGE}
-                        docker push ${ECR_LATEST}
-                    """
-                }
-            }
-        }
-
-        stage('Deploy to EC2') {
-            steps {
-                sshPublisher(
-                    publishers: [
-                        sshPublisherDesc(
-                            configName: 'ubuntu-ec2',
-                            transfers: [
-                                sshTransfer(
-                                    execCommand: """
-                                        docker login -u AWS -p \$(aws ecr get-login-password --region ${AWS_REGION}) ${ECR_REGISTRY}
-                                        docker rm -f myapp || true
-                                        docker run -d -p ${APP_PORT}:${APP_PORT} --name myapp ${ECR_LATEST}
-                                    """
-                                )
-                            ],
-                            verbose: true
-                        )
-                    ]
-                )
-            }
-        }
-    }
-
-    post {
-        always {
-            sh 'docker system prune -f'
         }
     }
 }
