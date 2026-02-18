@@ -1,25 +1,528 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>CI/CD Demo App</title>
-    <style>
-        body {
-            text-align: center;
-            font-family: Arial;
-            margin-top: 100px;
-            background-color: #f4f4f4;
-        }
-        h1 {
-            color: #2c3e50;
-        }
-        p {
-            font-size: 20px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jenkins CI/CD Pipeline Deep Dive</title>
+<style>
+/* Theme Variables */
+:root {
+  --font-family-display: Arial, sans-serif;
+  --font-weight-display: 600;
+  --font-family-content: Arial, sans-serif;
+  --font-weight-content: 400;
+  --font-size-content: 16px;
+  --line-height-content: 1.4;
+}
+
+/* DARK THEME (DEFAULT) */
+body.theme-dark {
+  --color-bg-base: #0f172a;
+  --color-bg-elevated: #020617;
+  --color-bg-surface: #1e293b;
+  --color-bg-muted: #334155;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+  --color-text-accent: #38bdf8;
+  --color-primary: #38bdf8;
+  --color-primary-foreground: #0f172a;
+}
+
+/* Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family-content);
+  font-weight: var(--font-weight-content);
+  font-size: var(--font-size-content);
+  line-height: var(--line-height-content);
+  overflow-x: hidden;
+}
+
+/* Slide Container */
+.slide {
+  width: 960px;
+  height: 540px;
+  margin: 0 auto 20px;
+  display: flex;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Layout Utilities */
+.row { flex-direction: row; }
+.col { flex-direction: column; }
+.center {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.space-between { justify-content: space-between; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.items-end { align-items: flex-end; }
+.fill-width { flex: 1; }
+.fill-height { flex: 1; display: flex; flex-direction: column; }
+
+/* Spacing */
+.gap-sm { gap: 0.5rem; }
+.gap-md { gap: 1rem; }
+.gap-lg { gap: 1.5rem; }
+.gap-xl { gap: 2rem; }
+.gap-2xl { gap: 3rem; }
+
+.p-4 { padding: 1rem; }
+.p-6 { padding: 1.5rem; }
+.p-8 { padding: 2rem; }
+.p-12 { padding: 3rem; }
+.p-16 { padding: 4rem; }
+
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+.mb-8 { margin-bottom: 2rem; }
+.mb-12 { margin-bottom: 3rem; }
+
+.mt-2 { margin-top: 0.5rem; }
+.mt-4 { margin-top: 1rem; }
+.mt-6 { margin-top: 1.5rem; }
+.mt-8 { margin-top: 2rem; }
+.mt-12 { margin-top: 3rem; }
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-display);
+  font-weight: var(--font-weight-display);
+  line-height: 1.2;
+  margin: 0;
+}
+
+h1 { font-size: 3rem; }
+h2 { font-size: 2.25rem; }
+h3 { font-size: 1.75rem; }
+h4 { font-size: 1.5rem; }
+h5 { font-size: 1.25rem; }
+h6 { font-size: 1rem; }
+
+.text-6xl { font-size: 3.75rem; }
+.text-5xl { font-size: 3rem; }
+.text-4xl { font-size: 2.25rem; }
+.text-3xl { font-size: 1.875rem; }
+.text-2xl { font-size: 1.5rem; }
+.text-xl { font-size: 1.25rem; }
+.text-lg { font-size: 1.125rem; }
+.text-base { font-size: 1rem; }
+.text-sm { font-size: 0.875rem; }
+.text-xs { font-size: 0.75rem; }
+
+.font-bold { font-weight: 700; }
+.font-semibold { font-weight: 600; }
+.font-medium { font-weight: 500; }
+.font-normal { font-weight: 400; }
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.opacity-90 { opacity: 0.9; }
+.opacity-80 { opacity: 0.8; }
+.opacity-70 { opacity: 0.7; }
+.opacity-60 { opacity: 0.6; }
+
+/* Lists */
+ul, ol {
+  margin-left: 2rem;
+  line-height: 1.8;
+}
+
+ul li { list-style: disc; }
+ol li { list-style: decimal; }
+
+li { margin-bottom: 0.75rem; }
+li:last-child { margin-bottom: 0; }
+
+/* Card Styles */
+.card-rect {
+  padding: 2rem;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Code Styles */
+code {
+  background-color: #1e293b;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+</style>
 </head>
-<body>
-    <h1>🚀 CI/CD Pipeline Working Successfully!</h1>
-    <p>Deployed via Jenkins + Docker + AWS EC2</p>
-    <p>Build Number: ${BUILD_NUMBER}</p>
+<body class="theme-dark">
+
+  <!-- Slide 1: Title -->
+  <section class="slide p-16 col center" style="background-color: #020617; color: #f1f5f9;">
+    <h1 class="text-6xl mb-4" style="color: #38bdf8;">Jenkins CI/CD Pipeline</h1>
+    <p class="text-2xl" style="color: #cbd5e1;">Complete Docker to AWS ECR Deployment</p>
+    <p class="text-sm mt-8" style="color: #94a3b8;">End-to-End Automated Deployment Pipeline</p>
+  </section>
+
+  <!-- Slide 2: Pipeline Overview -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">What This Pipeline Does</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li>Automates complete deployment workflow from code to production</li>
+      <li>Builds Docker images from your application code</li>
+      <li>Pushes images to AWS ECR (Elastic Container Registry)</li>
+      <li>Deploys containerized app to EC2 instance automatically</li>
+    </ul>
+  </section>
+
+  <!-- Slide 3: Pipeline Structure -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Pipeline Architecture</h2>
+    <div class="row gap-md">
+      <div class="fill-width" style="background-color: #1e293b; padding: 1.5rem;">
+        <h3 class="mb-4" style="color: #38bdf8;">Declarative Pipeline</h3>
+        <p style="color: #cbd5e1;">Uses Jenkins DSL syntax with predefined structure</p>
+      </div>
+      <div class="fill-width" style="background-color: #1e293b; padding: 1.5rem;">
+        <h3 class="mb-4" style="color: #38bdf8;">5 Core Stages</h3>
+        <p style="color: #cbd5e1;">Sequential execution with environment configuration</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 4: Agent Configuration -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Agent Configuration</h2>
+    <div style="background-color: #1e293b; padding: 2rem;">
+      <p class="text-lg mb-4" style="color: #cbd5e1;"><code>agent any</code></p>
+      <ul class="text-lg" style="color: #cbd5e1;">
+        <li>Allows pipeline to run on any available Jenkins agent</li>
+        <li>Provides flexibility for distributed builds</li>
+        <li>Jenkins selects first available executor</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Slide 5: Environment Variables Part 1 -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Environment Variables (Part 1)</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li><strong style="color: #38bdf8;">AWS_REGION:</strong> ap-south-1 (Mumbai region)</li>
+      <li><strong style="color: #38bdf8;">ECR_REGISTRY:</strong> Your AWS ECR endpoint URL</li>
+      <li><strong style="color: #38bdf8;">ECR_REPO:</strong> jenkins/repo (repository name)</li>
+      <li><strong style="color: #38bdf8;">IMAGE_TAG:</strong> Uses Jenkins BUILD_NUMBER for versioning</li>
+    </ul>
+  </section>
+
+  <!-- Slide 6: Environment Variables Part 2 -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Environment Variables (Part 2)</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li><strong style="color: #38bdf8;">APP_EC2_HOST:</strong> Target EC2 IP (3.108.217.189)</li>
+      <li><strong style="color: #38bdf8;">CONTAINER_NAME:</strong> student-app (running container name)</li>
+      <li><strong style="color: #38bdf8;">APP_PORT:</strong> Port 80 for web traffic</li>
+      <li><strong style="color: #38bdf8;">ECR_IMAGE & ECR_LATEST:</strong> Full image URIs with tags</li>
+    </ul>
+  </section>
+
+  <!-- Slide 7: Stage 1 Checkout -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Stage 1: Checkout Code</h2>
+    <div style="background-color: #1e293b; padding: 2rem;">
+      <p class="text-lg mb-4" style="color: #cbd5e1;"><code>checkout scm</code></p>
+      <ul class="text-lg" style="color: #cbd5e1;">
+        <li>Pulls latest code from Source Control Management (Git)</li>
+        <li>SCM configuration defined in Jenkins job settings</li>
+        <li>Ensures build uses most recent codebase</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Slide 8: Stage 2 Build -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Stage 2: Build Docker Image</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li>Builds Docker image from Dockerfile in workspace</li>
+      <li>Tags with BUILD_NUMBER for version tracking</li>
+      <li>Creates "latest" tag for easy reference</li>
+      <li>Both tags point to same image (different identifiers)</li>
+    </ul>
+  </section>
+
+  <!-- Slide 9: Docker Build Commands -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Docker Build Explained</h2>
+    <div style="background-color: #1e293b; padding: 2rem;">
+      <p class="text-lg mb-4" style="color: #cbd5e1;"><code>docker build -t jenkins/repo:42 .</code></p>
+      <ul class="text-lg" style="color: #cbd5e1;">
+        <li>-t flag specifies tag name with version</li>
+        <li>Dot (.) means use current directory Dockerfile</li>
+        <li>Creates local image ready for tagging</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Slide 10: Stage 3 ECR Login -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Stage 3: Login to AWS ECR</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li>Authenticates Docker client with AWS ECR</li>
+      <li>Uses AWS CLI to get temporary password token</li>
+      <li>Pipes password directly to docker login command</li>
+      <li>Required before pushing images to ECR</li>
+    </ul>
+  </section>
+
+  <!-- Slide 11: ECR Authentication Deep Dive -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">ECR Authentication Process</h2>
+    <div style="background-color: #1e293b; padding: 2rem;">
+      <p class="text-base mb-4" style="color: #cbd5e1;"><code>aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin &lt;ECR_URL&gt;</code></p>
+      <ul class="text-base" style="color: #cbd5e1;">
+        <li>AWS CLI retrieves 12-hour token from ECR</li>
+        <li>Username is always "AWS" for ECR</li>
+        <li>Password passed via stdin for security</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Slide 12: Stage 4 Tag & Push -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Stage 4: Tag &amp; Push to ECR</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li>Re-tags local images with full ECR registry path</li>
+      <li>Pushes both versioned and latest tags</li>
+      <li>Stores images in AWS cloud registry</li>
+      <li>Makes images available for deployment</li>
+    </ul>
+  </section>
+
+  <!-- Slide 13: ECR Tagging Explanation -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Why Double Tagging?</h2>
+    <div class="row gap-md">
+      <div class="fill-width" style="background-color: #1e293b; padding: 1.5rem;">
+        <h3 class="mb-4" style="color: #38bdf8;">Versioned Tag</h3>
+        <p style="color: #cbd5e1;">Immutable build history (42, 43, 44...)</p>
+      </div>
+      <div class="fill-width" style="background-color: #1e293b; padding: 1.5rem;">
+        <h3 class="mb-4" style="color: #38bdf8;">Latest Tag</h3>
+        <p style="color: #cbd5e1;">Always points to most recent successful build</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 14: Stage 5 Deploy Overview -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Stage 5: Deploy to EC2</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li>Uses SSH to connect to target EC2 instance</li>
+      <li>Authenticates with ECR from EC2 instance</li>
+      <li>Pulls latest image from ECR</li>
+      <li>Stops old container and starts new one</li>
+    </ul>
+  </section>
+
+  <!-- Slide 15: SSH Agent Plugin -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">SSH Agent Configuration</h2>
+    <div style="background-color: #1e293b; padding: 2rem;">
+      <p class="text-lg mb-4" style="color: #cbd5e1;"><code>sshagent(credentials: ['app-ec2-ssh'])</code></p>
+      <ul class="text-lg" style="color: #cbd5e1;">
+        <li>Jenkins SSH Agent plugin manages SSH keys</li>
+        <li>Credential ID references stored private key</li>
+        <li>Enables secure passwordless authentication</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Slide 16: SSH Command Breakdown Part 1 -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Remote Deployment Steps (Part 1)</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li><strong style="color: #38bdf8;">StrictHostKeyChecking=no:</strong> Bypasses SSH fingerprint verification</li>
+      <li><strong style="color: #38bdf8;">ubuntu@IP:</strong> Connects as ubuntu user to EC2</li>
+      <li><strong style="color: #38bdf8;">ECR Login:</strong> Authenticates Docker on EC2 with ECR</li>
+    </ul>
+  </section>
+
+  <!-- Slide 17: SSH Command Breakdown Part 2 -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Remote Deployment Steps (Part 2)</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li><strong style="color: #38bdf8;">Docker Pull:</strong> Downloads latest image from ECR to EC2</li>
+      <li><strong style="color: #38bdf8;">Docker rm -f:</strong> Force stops and removes old container</li>
+      <li><strong style="color: #38bdf8;">|| true:</strong> Prevents failure if container doesn't exist</li>
+    </ul>
+  </section>
+
+  <!-- Slide 18: Container Deployment -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Starting New Container</h2>
+    <div style="background-color: #1e293b; padding: 2rem;">
+      <p class="text-base mb-4" style="color: #cbd5e1;"><code>docker run -d --name student-app -p 80:80 &lt;ECR_IMAGE&gt;</code></p>
+      <ul class="text-base" style="color: #cbd5e1;">
+        <li>-d runs container in detached mode (background)</li>
+        <li>--name assigns container identifier</li>
+        <li>-p 80:80 maps host port 80 to container port 80</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Slide 19: Post Section -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Post-Build Cleanup</h2>
+    <div style="background-color: #1e293b; padding: 2rem;">
+      <p class="text-lg mb-4" style="color: #cbd5e1;"><code>docker system prune -f</code></p>
+      <ul class="text-lg" style="color: #cbd5e1;">
+        <li>Runs after pipeline regardless of success/failure</li>
+        <li>Removes unused Docker objects (images, containers)</li>
+        <li>Prevents disk space exhaustion on Jenkins agent</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Slide 20: Pipeline Flow Visualization -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Complete Pipeline Flow</h2>
+    <div class="row gap-sm" style="align-items: stretch;">
+      <div style="background-color: #1e293b; padding: 1rem; flex: 1;">
+        <p class="text-base" style="color: #38bdf8;">1. Checkout</p>
+      </div>
+      <div style="background-color: #1e293b; padding: 1rem; flex: 1;">
+        <p class="text-base" style="color: #38bdf8;">2. Build</p>
+      </div>
+      <div style="background-color: #1e293b; padding: 1rem; flex: 1;">
+        <p class="text-base" style="color: #38bdf8;">3. ECR Login</p>
+      </div>
+      <div style="background-color: #1e293b; padding: 1rem; flex: 1;">
+        <p class="text-base" style="color: #38bdf8;">4. Push</p>
+      </div>
+      <div style="background-color: #1e293b; padding: 1rem; flex: 1;">
+        <p class="text-base" style="color: #38bdf8;">5. Deploy</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 21: Prerequisites -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Prerequisites for This Pipeline</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li>Jenkins with Docker and AWS CLI installed</li>
+      <li>AWS IAM role with ECR permissions attached to Jenkins EC2</li>
+      <li>ECR repository created (jenkins/repo)</li>
+      <li>SSH key pair configured in Jenkins credentials</li>
+      <li>Target EC2 with Docker and AWS CLI installed</li>
+    </ul>
+  </section>
+
+  <!-- Slide 22: IAM Permissions -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Required AWS Permissions</h2>
+    <div class="row gap-md">
+      <div class="fill-width" style="background-color: #1e293b; padding: 1.5rem;">
+        <h3 class="mb-4" style="color: #38bdf8;">Jenkins EC2</h3>
+        <p style="color: #cbd5e1;">ecr:GetAuthorizationToken, ecr:PutImage, ecr:BatchCheckLayerAvailability</p>
+      </div>
+      <div class="fill-width" style="background-color: #1e293b; padding: 1.5rem;">
+        <h3 class="mb-4" style="color: #38bdf8;">App EC2</h3>
+        <p style="color: #cbd5e1;">ecr:GetAuthorizationToken, ecr:BatchGetImage, ecr:GetDownloadUrlForLayer</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 23: Security Best Practices -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Security Considerations</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li>SSH credentials stored securely in Jenkins</li>
+      <li>IAM roles used instead of hardcoded AWS keys</li>
+      <li>ECR authentication tokens expire after 12 hours</li>
+      <li>StrictHostKeyChecking disabled only for automation</li>
+    </ul>
+  </section>
+
+  <!-- Slide 24: Pipeline Benefits -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Benefits of This Pipeline</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li>Fully automated deployment reduces manual errors</li>
+      <li>Version tracking with BUILD_NUMBER tags</li>
+      <li>Zero-downtime deployment with container replacement</li>
+      <li>Centralized image registry with AWS ECR</li>
+    </ul>
+  </section>
+
+  <!-- Slide 25: Potential Improvements -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Potential Enhancements</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li>Add testing stage before deployment</li>
+      <li>Implement rollback mechanism for failed deployments</li>
+      <li>Add Slack/email notifications for build status</li>
+      <li>Use blue-green deployment for zero downtime</li>
+    </ul>
+  </section>
+
+  <!-- Slide 26: Common Issues Part 1 -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Troubleshooting Common Issues (Part 1)</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li><strong style="color: #38bdf8;">ECR Login Fails:</strong> Check IAM role permissions on Jenkins EC2</li>
+      <li><strong style="color: #38bdf8;">SSH Connection Fails:</strong> Verify security group allows SSH from Jenkins</li>
+      <li><strong style="color: #38bdf8;">Docker Build Fails:</strong> Check Dockerfile syntax and dependencies</li>
+    </ul>
+  </section>
+
+  <!-- Slide 27: Common Issues Part 2 -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Troubleshooting Common Issues (Part 2)</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li><strong style="color: #38bdf8;">Push Timeout:</strong> Network connectivity issue to ECR endpoints</li>
+      <li><strong style="color: #38bdf8;">Container Won't Start:</strong> Check app logs with docker logs</li>
+      <li><strong style="color: #38bdf8;">Port Already in Use:</strong> Old container wasn't removed properly</li>
+    </ul>
+  </section>
+
+  <!-- Slide 28: Pipeline Workflow Summary -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Execution Workflow Summary</h2>
+    <ul class="text-lg" style="color: #cbd5e1;">
+      <li>Code commit triggers Jenkins pipeline</li>
+      <li>Docker image built and versioned automatically</li>
+      <li>Image pushed to secure AWS ECR registry</li>
+      <li>EC2 instance pulls and deploys new container</li>
+      <li>Old container replaced seamlessly</li>
+    </ul>
+  </section>
+
+  <!-- Slide 29: Real-World Use Case -->
+  <section class="slide p-16 col" style="background-color: #0f172a; color: #f1f5f9;">
+    <h2 class="mb-6" style="color: #38bdf8;">Real-World Application</h2>
+    <div style="background-color: #1e293b; padding: 2rem;">
+      <p class="text-lg mb-4" style="color: #cbd5e1;">This pipeline pattern is used for:</p>
+      <ul class="text-lg" style="color: #cbd5e1;">
+        <li>Microservices continuous deployment</li>
+        <li>Web application auto-scaling infrastructure</li>
+        <li>Development to production workflows</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Slide 30: Thank You -->
+  <section class="slide p-16 col center" style="background-color: #020617; color: #f1f5f9;">
+    <h2 class="text-5xl mb-6" style="color: #38bdf8;">Pipeline Explained!</h2>
+    <p class="text-xl" style="color: #cbd5e1;">Questions?</p>
+    <p class="text-sm mt-8" style="color: #94a3b8;">This is a production-grade CI/CD workflow used by DevOps teams worldwide</p>
+  </section>
+
 </body>
 </html>
