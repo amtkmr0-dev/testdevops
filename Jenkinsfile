@@ -6,7 +6,7 @@ pipeline {
         ECR_REGISTRY  = "688094241179.dkr.ecr.ap-south-1.amazonaws.com"
         ECR_REPO      = "jenkins/repo"
         IMAGE_TAG     = "${BUILD_NUMBER}"
-        APP_EC2_HOST  = "3.108.217.189"  // ✅ Confirmed
+        APP_EC2_HOST  = "3.108.217.189"  // Target Server
         CONTAINER_NAME = "student-app"
         APP_PORT      = "80"
         ECR_IMAGE     = "${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}"
@@ -51,7 +51,7 @@ pipeline {
 
         stage('Deploy to App EC2') {
             steps {
-                sshagent(credentials: ['app-ec2-ssh']) {  // ✅ Matches your config[file:262]
+                sshagent(credentials: ['app-ec2-ssh']) {  // ID for SSH
                     sh """
                         ssh -o StrictHostKeyChecking=no ubuntu@${APP_EC2_HOST} '
                             aws ecr get-login-password --region ${AWS_REGION} | \\
